@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuditChain;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -32,7 +34,11 @@ class UserController extends Controller
             'role' => ['sometimes', 'in:admin,counsellor,viewer'],
         ]);
 
-        $user->update($validated);
+        DB::transaction(function () use ($user, $validated) {
+            $user->update($validated);
+
+            AuditChain::record('user.updated', $user, AuditChain::diff($user, array_keys($validated)));
+        });
 
         return $user;
     }
@@ -41,7 +47,13 @@ class UserController extends Controller
     {
         $this->authorize('delete', $user);
 
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            AuditChain::record('user.deleted', $user, [
+                'before' => $user->only(['name', 'email', 'role']),
+            ]);
+
+            $user->delete();
+        });
 
         return response()->json(status: 204);
     }

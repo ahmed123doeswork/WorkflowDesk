@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\UserController;
@@ -22,4 +23,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/enquiries/{enquiry}', [EnquiryController::class, 'update']);
     Route::patch('/enquiries/{enquiry}/assign', [EnquiryController::class, 'assign']);
     Route::patch('/enquiries/{enquiry}/transition', [EnquiryController::class, 'transition']);
+
+    Route::get('/audit/verify', [AuditController::class, 'verify']);
 });

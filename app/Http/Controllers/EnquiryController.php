@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\EnquiryStatus;
 use App\Http\Concerns\ChecksIfMatch;
 use App\Models\Enquiry;
+use App\Services\AuditChain;
 use App\StateMachines\EnquiryTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,11 +56,17 @@ class EnquiryController extends Controller
             'priority' => ['sometimes', 'in:low,medium,high,urgent'],
         ]);
 
-        $enquiry = Enquiry::create([
-            ...$validated,
-            'created_by' => $request->user()->id,
-            'version' => 1,
-        ]);
+        $enquiry = DB::transaction(function () use ($validated, $request) {
+            $enquiry = Enquiry::create([
+                ...$validated,
+                'created_by' => $request->user()->id,
+                'version' => 1,
+            ]);
+
+            AuditChain::record('enquiry.created', $enquiry, ['after' => $validated]);
+
+            return $enquiry;
+        });
 
         return response()->json($enquiry, 201)->withHeaders([
             'ETag' => $enquiry->etag(),
@@ -90,6 +97,8 @@ class EnquiryController extends Controller
 
         DB::transaction(function () use ($enquiry, $validated) {
             $enquiry->update($validated);
+
+            AuditChain::record('enquiry.updated', $enquiry, AuditChain::diff($enquiry, array_keys($validated)));
         });
 
         return response()->json($enquiry->refresh())->withHeaders([
@@ -108,6 +117,8 @@ class EnquiryController extends Controller
 
         DB::transaction(function () use ($enquiry, $validated) {
             $enquiry->update(['assigned_to' => $validated['assigned_to'] ?? null]);
+
+            AuditChain::record('enquiry.assigned', $enquiry, AuditChain::diff($enquiry, ['assigned_to']));
         });
 
         return response()->json($enquiry->refresh())->withHeaders([
@@ -132,6 +143,8 @@ class EnquiryController extends Controller
 
         DB::transaction(function () use ($enquiry, $to) {
             $enquiry->update(['status' => $to]);
+
+            AuditChain::record('enquiry.status_changed', $enquiry, AuditChain::diff($enquiry, ['status']));
         });
 
         return response()->json($enquiry->refresh())->withHeaders([
