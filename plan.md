@@ -45,7 +45,7 @@ Each phase ends with passing tests.
 - [x] Phase 1 — Setup
 - [x] Phase 2 — Tenancy & auth
 - [x] Phase 3 — Enquiries & workflow
-- [ ] Phase 4 — Audit chain
+- [x] Phase 4 — Audit chain
 - [ ] Phase 5 — SLA engine
 - [ ] Phase 6 — Vue front end
 - [ ] Phase 7 — CI & docs
