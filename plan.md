@@ -43,7 +43,7 @@ Each phase ends with passing tests.
 ## Status
 
 - [x] Phase 1 — Setup
-- [ ] Phase 2 — Tenancy & auth
+- [x] Phase 2 — Tenancy & auth
 - [ ] Phase 3 — Enquiries & workflow
 - [ ] Phase 4 — Audit chain
 - [ ] Phase 5 — SLA engine
