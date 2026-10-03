@@ -84,8 +84,9 @@ async function confirmTransition(note: string) {
   )
 }
 
-async function assignTo(userId: number | null) {
-  await runMutation({ assigned_to: userId }, () => getApi().assignEnquiry(props.enquiryId, userId, etag.value))
+function assignTo(rawValue: string) {
+  const userId = rawValue === '' ? null : Number(rawValue)
+  void runMutation({ assigned_to: userId }, () => getApi().assignEnquiry(props.enquiryId, userId, etag.value))
 }
 
 async function resolveConflict(action: 'reload' | 'overwrite') {
@@ -162,7 +163,7 @@ async function resolveConflict(action: 'reload' | 'overwrite') {
                 style="border-color: var(--color-line)"
                 :value="enquiry.assigned_to ?? ''"
                 :disabled="busy"
-                @change="assignTo((($event.target as HTMLSelectElement).value || null) as any)"
+                @change="assignTo(($event.target as HTMLSelectElement).value)"
               >
                 <option value="">Unassigned</option>
                 <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
@@ -214,6 +215,7 @@ async function resolveConflict(action: 'reload' | 'overwrite') {
     v-if="conflict"
     :current="conflict.current"
     :mine="conflict.mine"
+    :users="users"
     @reload="resolveConflict('reload')"
     @overwrite="resolveConflict('overwrite')"
   />

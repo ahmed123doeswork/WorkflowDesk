@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { Enquiry } from '../types'
+import { STATUS_LABELS, type Enquiry, type EnquiryStatus, type User } from '../types'
 import BaseModal from './BaseModal.vue'
 
 const props = defineProps<{
   current: Enquiry
   mine: Partial<Enquiry>
+  users: User[]
 }>()
 
 const emit = defineEmits<{ reload: []; overwrite: [] }>()
@@ -18,6 +19,20 @@ const fieldLabels: Partial<Record<keyof Enquiry, string>> = {
 }
 
 const changedFields = (Object.keys(props.mine) as (keyof Enquiry)[]).filter((key) => key in fieldLabels)
+
+function displayValue(field: keyof Enquiry, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+
+  if (field === 'assigned_to') {
+    return props.users.find((u) => u.id === Number(value))?.name ?? `User #${value}`
+  }
+
+  if (field === 'status') {
+    return STATUS_LABELS[value as EnquiryStatus] ?? String(value)
+  }
+
+  return String(value)
+}
 </script>
 
 <template>
@@ -33,11 +48,11 @@ const changedFields = (Object.keys(props.mine) as (keyof Enquiry)[]).filter((key
         <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
           <div>
             <p class="text-xs" style="color: var(--color-ink-muted)">Their change</p>
-            <p style="color: var(--color-ink)">{{ String((current as any)[field] ?? '—') }}</p>
+            <p style="color: var(--color-ink)">{{ displayValue(field, (current as any)[field]) }}</p>
           </div>
           <div>
             <p class="text-xs" style="color: var(--color-ink-muted)">Your change</p>
-            <p style="color: var(--color-ink)">{{ String((mine as any)[field] ?? '—') }}</p>
+            <p style="color: var(--color-ink)">{{ displayValue(field, (mine as any)[field]) }}</p>
           </div>
         </div>
       </div>
