@@ -1,58 +1,75 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# WorkflowDesk
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A multi-tenant enquiry queue for admissions/support teams — Laravel 13 API + Vue 3 front end. Built as a portfolio piece demonstrating patterns enterprise buyers actually ask about: tenant isolation, optimistic concurrency, a tamper-evident audit log, and SLA clocks that respect business hours and time zones.
 
-## About Laravel
+See [plan.md](plan.md) for the phase-by-phase build log, and [docs/adr](docs/adr) for the reasoning behind the non-obvious decisions.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What's here
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Two synthetic tenants**, three roles each (admin, counsellor, viewer). Every query is scoped to the caller's tenant; another tenant's record 404s rather than 403s, because the row is never in the query result set to begin with — see [ADR 0001](docs/adr/0001-tenancy-via-global-scope.md).
+- **An enquiry workflow** with a fixed transition graph (not "any status to any status"), assignment, and optimistic locking over HTTP: every mutation requires an `If-Match` header, and a stale write gets a `412` with nothing overwritten — see [ADR 0003](docs/adr/0003-optimistic-locking-etag.md).
+- **A tamper-evident audit log**: each entry hashes the previous entry's hash (one chain per tenant), written in the same DB transaction as the change it describes, and a MySQL trigger blocks `UPDATE`/`DELETE` on the table outright. `GET /api/audit/verify` recomputes the chain and reports the first broken link — see [ADR 0002](docs/adr/0002-audit-hash-chain.md).
+- **An SLA engine**: priority sets response/resolution targets, due dates are computed against the tenant's business-hours calendar (correct across DST, not just correct in UTC), and a scheduled command flags at-risk/breached enquiries — see [ADR 0004](docs/adr/0004-sla-business-calendar.md).
+- **A Vue front end** behind a typed adapter with three implementations — live, a self-contained browser demo, and an honest "unavailable" state — see [ADR 0005](docs/adr/0005-frontend-adapter-pattern.md) and [frontend/README.md](frontend/README.md).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Project layout
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+app/                  Laravel application code
+database/migrations/  Schema, including the audit_logs triggers
+frontend/             Vue 3 + TypeScript front end (separate README)
+tests/                PHPUnit feature/unit tests (66, all against real MySQL)
+docs/adr/             Architecture decision records
+.github/workflows/    CI
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Running it locally
 
-## Contributing
+### Backend
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Requires PHP 8.3+, Composer, and MySQL.
 
-## Code of Conduct
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Seeded accounts (all tenants, all roles share the password `password`):
 
-## Security Vulnerabilities
+| Email | Tenant | Role |
+|---|---|---|
+| `admin@acme-education.test` | Acme Education | admin |
+| `counsellor@acme-education.test` | Acme Education | counsellor |
+| `viewer@acme-education.test` | Acme Education | viewer |
+| `admin@globex-learning.test` | Globex Learning | admin |
+| `counsellor@globex-learning.test` | Globex Learning | counsellor |
+| `viewer@globex-learning.test` | Globex Learning | viewer |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Frontend
 
-## License
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+With no backend running, set `VITE_API_MODE=browser` in `frontend/.env` first — the UI then runs entirely on a built-in demo dataset. Details in [frontend/README.md](frontend/README.md).
+
+### Tests
+
+```bash
+php artisan test            # backend - 66 tests against real MySQL, not SQLite
+cd frontend && npx vue-tsc -b && npm run build   # frontend type-check + build
+```
+
+### SLA scheduler
+
+`php artisan enquiries:check-sla` recomputes SLA status for open enquiries and writes an audit entry when it changes. It's registered in `routes/console.php` to run every 5 minutes; running the scheduler in production needs a single cron entry calling `php artisan schedule:run` every minute, same as any Laravel app.
+
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the backend suite against a real MySQL 8.4 service container (not SQLite — the audit-log triggers and DST-sensitive SLA math are both things SQLite would either fake or silently get subtly wrong), and type-checks + builds the frontend, on every push and pull request.
