@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EnquiryStatus;
+use App\Enums\Priority;
 use App\Http\Concerns\ChecksIfMatch;
 use App\Models\Enquiry;
 use App\Services\AuditChain;
+use App\Services\SlaCalculator;
 use App\StateMachines\EnquiryTransitions;
+use App\Support\Clock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -14,6 +17,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class EnquiryController extends Controller
 {
     use ChecksIfMatch;
+
+    public function __construct(
+        private readonly SlaCalculator $sla,
+        private readonly Clock $clock,
+    ) {}
 
     public function index(Request $request)
     {
@@ -57,10 +65,16 @@ class EnquiryController extends Controller
         ]);
 
         $enquiry = DB::transaction(function () use ($validated, $request) {
+            $tenant = $request->user()->tenant;
+            $priority = Priority::from($validated['priority'] ?? 'medium');
+            $dueDates = $this->sla->dueDates($tenant, $priority);
+
             $enquiry = Enquiry::create([
                 ...$validated,
                 'created_by' => $request->user()->id,
                 'version' => 1,
+                'response_due_at' => $dueDates['response_due_at'],
+                'resolution_due_at' => $dueDates['resolution_due_at'],
             ]);
 
             AuditChain::record('enquiry.created', $enquiry, ['after' => $validated]);
@@ -142,9 +156,19 @@ class EnquiryController extends Controller
         }
 
         DB::transaction(function () use ($enquiry, $to) {
-            $enquiry->update(['status' => $to]);
+            $attributes = ['status' => $to];
 
-            AuditChain::record('enquiry.status_changed', $enquiry, AuditChain::diff($enquiry, ['status']));
+            if ($to === EnquiryStatus::InProgress && ! $enquiry->responded_at) {
+                $attributes['responded_at'] = $this->clock->now();
+            }
+
+            if ($to === EnquiryStatus::Resolved) {
+                $attributes['resolved_at'] = $this->clock->now();
+            }
+
+            $enquiry->update($attributes);
+
+            AuditChain::record('enquiry.status_changed', $enquiry, AuditChain::diff($enquiry, array_keys($attributes)));
         });
 
         return response()->json($enquiry->refresh())->withHeaders([

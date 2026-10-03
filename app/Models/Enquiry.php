@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EnquiryStatus;
 use App\Enums\Priority;
+use App\Enums\SlaStatus;
 use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\EnquiryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,11 @@ class Enquiry extends Model
         'assigned_to',
         'created_by',
         'version',
+        'response_due_at',
+        'resolution_due_at',
+        'responded_at',
+        'resolved_at',
+        'sla_status',
     ];
 
     protected function casts(): array
@@ -32,6 +38,11 @@ class Enquiry extends Model
         return [
             'status' => EnquiryStatus::class,
             'priority' => Priority::class,
+            'sla_status' => SlaStatus::class,
+            'response_due_at' => 'immutable_datetime',
+            'resolution_due_at' => 'immutable_datetime',
+            'responded_at' => 'immutable_datetime',
+            'resolved_at' => 'immutable_datetime',
         ];
     }
 

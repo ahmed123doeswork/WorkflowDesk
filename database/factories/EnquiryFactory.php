@@ -4,8 +4,10 @@ namespace Database\Factories;
 
 use App\Enums\EnquiryStatus;
 use App\Enums\Priority;
+use App\Enums\SlaStatus;
 use App\Models\Enquiry;
 use App\Models\Tenant;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -29,6 +31,7 @@ class EnquiryFactory extends Factory
             'status' => EnquiryStatus::New,
             'priority' => fake()->randomElement(Priority::cases()),
             'version' => 1,
+            'sla_status' => SlaStatus::OnTrack,
         ];
     }
 
@@ -43,6 +46,21 @@ class EnquiryFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'priority' => $priority,
+        ]);
+    }
+
+    public function slaStatus(SlaStatus $status): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sla_status' => $status,
+        ]);
+    }
+
+    public function dueAt(CarbonImmutable $responseDueAt, CarbonImmutable $resolutionDueAt): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'response_due_at' => $responseDueAt,
+            'resolution_due_at' => $resolutionDueAt,
         ]);
     }
 }

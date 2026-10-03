@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\BusinessCalendar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,10 +15,23 @@ class Tenant extends Model
         'name',
         'slug',
         'timezone',
+        'holidays',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'holidays' => 'array',
+        ];
+    }
 
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function businessCalendar(): BusinessCalendar
+    {
+        return new BusinessCalendar($this->timezone, $this->holidays ?? []);
     }
 }
