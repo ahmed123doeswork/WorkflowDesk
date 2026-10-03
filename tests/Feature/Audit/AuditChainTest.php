@@ -68,4 +68,34 @@ class AuditChainTest extends TestCase
 
         $this->assertSame(['enquiry.assigned', 'enquiry.status_changed'], $actions->all());
     }
+
+    public function test_audit_trail_endpoint_returns_entries_for_that_enquiry_only(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $admin = User::factory()->role(Role::Admin)->create(['tenant_id' => $tenant->id]);
+        $enquiry = Enquiry::factory()->for($tenant)->create();
+        $otherEnquiry = Enquiry::factory()->for($tenant)->create();
+
+        AuditChain::record('enquiry.created', $enquiry, ['after' => []]);
+        AuditChain::record('enquiry.created', $otherEnquiry, ['after' => []]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson("/api/enquiries/{$enquiry->id}/audit")->assertOk();
+
+        $this->assertCount(1, $response->json());
+        $this->assertSame($enquiry->id, $response->json('0.auditable_id'));
+    }
+
+    public function test_audit_trail_for_cross_tenant_enquiry_returns_404(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $admin = User::factory()->role(Role::Admin)->create(['tenant_id' => $tenantA->id]);
+        $otherEnquiry = Enquiry::factory()->for($tenantB)->create();
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/enquiries/{$otherEnquiry->id}/audit")->assertNotFound();
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\EnquiryStatus;
 use App\Enums\Priority;
 use App\Http\Concerns\ChecksIfMatch;
+use App\Models\AuditLog;
 use App\Models\Enquiry;
 use App\Services\AuditChain;
 use App\Services\SlaCalculator;
@@ -94,6 +95,18 @@ class EnquiryController extends Controller
         return response()->json($enquiry)->withHeaders([
             'ETag' => $enquiry->etag(),
         ]);
+    }
+
+    public function auditTrail(Enquiry $enquiry)
+    {
+        $this->authorize('view', $enquiry);
+
+        return AuditLog::withoutGlobalScopes()
+            ->where('auditable_type', Enquiry::class)
+            ->where('auditable_id', $enquiry->id)
+            ->with('user:id,name')
+            ->orderBy('id')
+            ->get();
     }
 
     public function update(Request $request, Enquiry $enquiry)
