@@ -13,7 +13,7 @@ A multi-tenant enquiry queue: Laravel 13 API + Vue/TypeScript front end. Portfol
 - SLA engine: priority → response/resolution targets; due times computed in tenant timezone against a business-hours + holiday calendar, stored in UTC. Scheduled command flags at-risk/breached and writes an audit entry. Clock is injectable; tests cover DST boundaries.
 - Permission matrix test (role × tenant × action), request-ID logging, health endpoint, OpenAPI spec.
 - Vue front end reusing portfolio demo UI behind a typed adapter (browser / live / unavailable modes).
-- CI (GitHub Actions) against real MySQL, README, ADRs, Docker Compose (written, verified only in CI).
+- CI (GitHub Actions) against real MySQL, README, ADRs. Docker Compose skipped by request — native setup already works.
 
 **Out of scope**
 - Real email, real student data, SSO, billing, webhooks (deferred to WebhookLab).
@@ -36,7 +36,7 @@ A multi-tenant enquiry queue: Laravel 13 API + Vue/TypeScript front end. Portfol
 4. **Audit chain** (~1 day) — Hash chain, DB-trigger immutability, verify endpoint, tamper test.
 5. **SLA engine** (~1–2 days) — Business calendar, scheduled command, DST tests, injectable clock.
 6. **Vue front end** (~2 days) — Typed adapter (browser / live / unavailable), reuse portfolio UI.
-7. **CI & docs** (~1 day) — GitHub Actions + real MySQL, README, ADRs, Docker Compose.
+7. **CI & docs** (~1 day) — GitHub Actions + real MySQL, README, ADRs. (Docker Compose skipped by request.)
 
 Each phase ends with passing tests.
 
@@ -48,4 +48,4 @@ Each phase ends with passing tests.
 - [x] Phase 4 — Audit chain
 - [x] Phase 5 — SLA engine
 - [x] Phase 6 — Vue front end
-- [ ] Phase 7 — CI & docs
+- [x] Phase 7 — CI & docs
