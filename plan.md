@@ -42,7 +42,7 @@ Each phase ends with passing tests.
 
 ## Status
 
-- [ ] Phase 1 — Setup
+- [x] Phase 1 — Setup
 - [ ] Phase 2 — Tenancy & auth
 - [ ] Phase 3 — Enquiries & workflow
 - [ ] Phase 4 — Audit chain
