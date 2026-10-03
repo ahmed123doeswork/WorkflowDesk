@@ -1,0 +1,141 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\EnquiryStatus;
+use App\Http\Concerns\ChecksIfMatch;
+use App\Models\Enquiry;
+use App\StateMachines\EnquiryTransitions;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+
+class EnquiryController extends Controller
+{
+    use ChecksIfMatch;
+
+    public function index(Request $request)
+    {
+        $this->authorize('viewAny', Enquiry::class);
+
+        $query = Enquiry::query();
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($priority = $request->query('priority')) {
+            $query->where('priority', $priority);
+        }
+
+        if ($request->filled('assigned_to')) {
+            $query->where('assigned_to', $request->query('assigned_to'));
+        }
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
+                    ->orWhere('student_name', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->latest()
+            ->paginate(min((int) $request->integer('per_page', 15), 100));
+    }
+
+    public function store(Request $request)
+    {
+        $this->authorize('create', Enquiry::class);
+
+        $validated = $request->validate([
+            'student_name' => ['required', 'string', 'max:255'],
+            'student_email' => ['required', 'email'],
+            'subject' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'priority' => ['sometimes', 'in:low,medium,high,urgent'],
+        ]);
+
+        $enquiry = Enquiry::create([
+            ...$validated,
+            'created_by' => $request->user()->id,
+            'version' => 1,
+        ]);
+
+        return response()->json($enquiry, 201)->withHeaders([
+            'ETag' => $enquiry->etag(),
+        ]);
+    }
+
+    public function show(Enquiry $enquiry)
+    {
+        $this->authorize('view', $enquiry);
+
+        return response()->json($enquiry)->withHeaders([
+            'ETag' => $enquiry->etag(),
+        ]);
+    }
+
+    public function update(Request $request, Enquiry $enquiry)
+    {
+        $this->authorize('update', $enquiry);
+        $this->assertIfMatch($request, $enquiry->etag());
+
+        $validated = $request->validate([
+            'student_name' => ['sometimes', 'string', 'max:255'],
+            'student_email' => ['sometimes', 'email'],
+            'subject' => ['sometimes', 'string', 'max:255'],
+            'description' => ['sometimes', 'string'],
+            'priority' => ['sometimes', 'in:low,medium,high,urgent'],
+        ]);
+
+        DB::transaction(function () use ($enquiry, $validated) {
+            $enquiry->update($validated);
+        });
+
+        return response()->json($enquiry->refresh())->withHeaders([
+            'ETag' => $enquiry->etag(),
+        ]);
+    }
+
+    public function assign(Request $request, Enquiry $enquiry)
+    {
+        $this->authorize('assign', $enquiry);
+        $this->assertIfMatch($request, $enquiry->etag());
+
+        $validated = $request->validate([
+            'assigned_to' => ['nullable', 'exists:users,id'],
+        ]);
+
+        DB::transaction(function () use ($enquiry, $validated) {
+            $enquiry->update(['assigned_to' => $validated['assigned_to'] ?? null]);
+        });
+
+        return response()->json($enquiry->refresh())->withHeaders([
+            'ETag' => $enquiry->etag(),
+        ]);
+    }
+
+    public function transition(Request $request, Enquiry $enquiry)
+    {
+        $this->authorize('transition', $enquiry);
+        $this->assertIfMatch($request, $enquiry->etag());
+
+        $validated = $request->validate([
+            'status' => ['required', 'in:new,in_progress,waiting,resolved,closed'],
+        ]);
+
+        $to = EnquiryStatus::from($validated['status']);
+
+        if (! EnquiryTransitions::canTransition($enquiry->status, $to)) {
+            throw new HttpException(422, "Cannot transition from {$enquiry->status->value} to {$to->value}.");
+        }
+
+        DB::transaction(function () use ($enquiry, $to) {
+            $enquiry->update(['status' => $to]);
+        });
+
+        return response()->json($enquiry->refresh())->withHeaders([
+            'ETag' => $enquiry->etag(),
+        ]);
+    }
+}
