@@ -86,6 +86,28 @@ class EnquiryWorkflowTest extends TestCase
             ->assertJsonPath('status', 'in_progress');
     }
 
+    public function test_transition_note_is_recorded_in_the_audit_log(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $admin = User::factory()->role(Role::Admin)->create(['tenant_id' => $tenant->id]);
+        $enquiry = Enquiry::factory()->for($tenant)->status(EnquiryStatus::InProgress)->create();
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/enquiries/{$enquiry->id}/transition", [
+            'status' => 'resolved',
+            'note' => 'Confirmed with the registrar; closing out.',
+        ], ['If-Match' => $enquiry->etag()])->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'enquiry.status_changed',
+            'auditable_id' => $enquiry->id,
+        ]);
+
+        $entry = \App\Models\AuditLog::withoutGlobalScopes()->where('auditable_id', $enquiry->id)->latest('id')->first();
+        $this->assertSame('Confirmed with the registrar; closing out.', $entry->changes['note']);
+    }
+
     public function test_invalid_transition_is_rejected(): void
     {
         $tenant = Tenant::factory()->create();

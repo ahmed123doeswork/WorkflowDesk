@@ -160,6 +160,7 @@ class EnquiryController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'in:new,in_progress,waiting,resolved,closed'],
+            'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
 
         $to = EnquiryStatus::from($validated['status']);
@@ -168,7 +169,7 @@ class EnquiryController extends Controller
             throw new HttpException(422, "Cannot transition from {$enquiry->status->value} to {$to->value}.");
         }
 
-        DB::transaction(function () use ($enquiry, $to) {
+        DB::transaction(function () use ($enquiry, $to, $validated) {
             $attributes = ['status' => $to];
 
             if ($to === EnquiryStatus::InProgress && ! $enquiry->responded_at) {
@@ -181,7 +182,13 @@ class EnquiryController extends Controller
 
             $enquiry->update($attributes);
 
-            AuditChain::record('enquiry.status_changed', $enquiry, AuditChain::diff($enquiry, array_keys($attributes)));
+            $diff = AuditChain::diff($enquiry, array_keys($attributes));
+
+            if (! empty($validated['note'])) {
+                $diff['note'] = $validated['note'];
+            }
+
+            AuditChain::record('enquiry.status_changed', $enquiry, $diff);
         });
 
         return response()->json($enquiry->refresh())->withHeaders([
