@@ -47,5 +47,5 @@ Each phase ends with passing tests.
 - [x] Phase 3 — Enquiries & workflow
 - [x] Phase 4 — Audit chain
 - [x] Phase 5 — SLA engine
-- [ ] Phase 6 — Vue front end
+- [x] Phase 6 — Vue front end
 - [ ] Phase 7 — CI & docs
