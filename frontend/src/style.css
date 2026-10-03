@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Brand */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #4338ca;
+  --color-brand-600: #3730a3;
+  --color-brand-700: #312e81;
+
+  /* Surfaces & text */
+  --color-surface: #f8fafc;
+  --color-surface-raised: #ffffff;
+  --color-ink: #0f172a;
+  --color-ink-muted: #475569;
+  --color-line: #e2e8f0;
+
+  /* Tenant accent */
+  --color-tenant: #0d9488;
+  --color-tenant-100: #ccfbf1;
+
+  /* Enquiry status */
+  --color-status-new: #3b82f6;
+  --color-status-new-bg: #eff6ff;
+  --color-status-progress: #f59e0b;
+  --color-status-progress-bg: #fffbeb;
+  --color-status-waiting: #8b5cf6;
+  --color-status-waiting-bg: #f5f3ff;
+  --color-status-resolved: #10b981;
+  --color-status-resolved-bg: #ecfdf5;
+  --color-status-closed: #64748b;
+  --color-status-closed-bg: #f1f5f9;
+
+  /* SLA health */
+  --color-sla-on-track: #10b981;
+  --color-sla-at-risk: #f59e0b;
+  --color-sla-breached: #f43f5e;
+  --color-sla-breached-bg: #fff1f2;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Tabular numbers everywhere data is counted or dated - IDs, pagination,
+   timestamps - so columns of digits align instead of jittering. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+  border: 2px solid var(--color-surface);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 1px;
+}

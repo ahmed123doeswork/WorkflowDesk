@@ -6,6 +6,8 @@ use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
+
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
